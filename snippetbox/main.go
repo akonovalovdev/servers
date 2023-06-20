@@ -7,7 +7,15 @@ import (
 
 // Обработчик главной страницы.
 func home(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Привет из Snippetbox"))
+	// Проверяется, если текущий путь URL запроса точно совпадает с шаблоном "/". Если нет, вызывается
+	// функция http.NotFound() для возвращения клиенту ошибки 404.
+	// Важно, чтобы мы завершили работу обработчика через return. Если мы забудем про "return", то обработчик
+	// продолжит работу и выведет сообщение "Привет из SnippetBox" как ни в чем не бывало.
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Write([]byte("Привет из Snippetbox\n"))
 }
 
 // Обработчик для отображения содержимого заметки.
@@ -103,4 +111,29 @@ func main() {
 //	log.Println("Запуск веб-сервера на http://127.0.0.1:4000")
 //	err := http.ListenAndServe(":4000", mux)
 //	log.Fatal(err)
+//}
+
+// тест методов GET  и POST
+//func home(w http.ResponseWriter, r *http.Request) {
+//if r.Method == http.MethodGet {
+//		w.Write([]byte("Привет из Snippetbox\n"))
+//		w.Write([]byte(r.Method + "\n"))
+//		w.Write([]byte(r.RequestURI + "\n"))
+//		w.Write([]byte(r.Proto + "\n"))
+//		w.Write([]byte("x: " + r.FormValue("x") + "\n"))
+//
+//		return
+//	}
+//
+//	if r.Method == http.MethodPost {
+//		w.Write([]byte("Сохраняем в базу данных\n"))
+//		w.Write([]byte(r.Method + "\n"))
+//		w.Write([]byte(r.RequestURI + "\n"))
+//		w.Write([]byte(r.Proto + "\n"))
+//		w.Write([]byte("x: " + r.FormValue("x") + "\n"))
+//
+//		return
+//	}
+//	w.WriteHeader(http.StatusBadRequest)
+//	w.Write([]byte("НЕкорректный метод:" + r.Method + "\n"))
 //}
