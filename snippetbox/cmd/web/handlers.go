@@ -1,7 +1,9 @@
 package main
 
+// импортируемый пакет для HTML шаблонов
 import (
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"strconv"
