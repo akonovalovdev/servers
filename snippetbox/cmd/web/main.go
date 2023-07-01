@@ -27,7 +27,7 @@ type application struct {
 func main() {
 	addr := flag.String("addr", ":4000", "Сетевой адрес веб-сервера")
 	// Определение нового флага из командной строки для настройки MySQL подключения.
-	dsn := flag.String("dsn", "web:pass@/snippetbox?parseTime=true", "Название MySQL источника данных")
+	dsn := flag.String("dsn", "web:password13@/snippetbox?parseTime=true", "Название MySQL источника данных")
 	flag.Parse()
 
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
