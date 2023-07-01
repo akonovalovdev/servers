@@ -3,19 +3,23 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"github.com/akonovalovdev/servers/snippetbox/pkg/models/mysql"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"net/http"
 	"os"
 )
 
-type neuteredFileSystem struct {
-	fs http.FileSystem
-}
-
+// Добавляем поле snippets в структуру application. Это позволит
+// сделать объект SnippetModel доступным для наших обработчиков.
 type application struct {
 	errorLog *log.Logger
 	infoLog  *log.Logger
+	snippets *mysql.SnippetModel
+}
+
+type neuteredFileSystem struct {
+	fs http.FileSystem
 }
 
 /*
@@ -46,9 +50,11 @@ func main() {
 	// Подробнее про defer: https://golangs.org/errors#defer
 	defer db.Close()
 
+	// Инициализируем экземпляр mysql.SnippetModel и добавляем его в зависимостях.
 	app := &application{
 		errorLog: errorLog,
 		infoLog:  infoLog,
+		snippets: &mysql.SnippetModel{DB: db},
 	}
 
 	srv := &http.Server{
