@@ -2,72 +2,92 @@ package main
 
 // импортируемый 	"html/template"
 import (
+	"errors"
 	"fmt"
+	"github.com/akonovalovdev/servers/snippetbox/pkg/models"
 	"html/template"
 	"net/http"
 	"strconv"
 )
 
-// 3 версия handlers (Логирование)
-/*
-логгеры infoLog и errorLog не видны из за области видимости функции main()
-
-У большинства веб-приложений будет несколько зависимостей, к которым их обработчики должны обращаться.
-Например пул соединений с базой данных, централизованные обработчики ошибок и кэши шаблонов.
-
-Как сделать любую зависимость доступной нашим обработчикам?
-- Глобальная переменная выручит, но усложнит тестирование и повысит риск возникновение ошибок
-
-- Для приложений, в которых все обработчики находятся в одном пакете (как наше приложение),
-отличным способом внедрения зависимостей будет их размещение в структуру application
-
-В файле main.go создаём новую структуру application
-*/
-
-// Меняем сигнатуры обработчика home, чтобы он определялся как метод
-// структуры *application.
+// 4я версия handlers отправка 10 запросов
 func (app *application) home(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		app.notFound(w) // Использование помощника notFound() из halpers.go
+		app.notFound(w)
 		return
 	}
+
+	s, err := app.snippets.Latest()
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+
+	// Создаем экземпляр структуры templateData,
+	// содержащий срез с заметками.
+	data := &templateData{Snippets: s}
+
 	files := []string{
 		"./snippetbox/ui/html/home.page.tmpl",
 		"./snippetbox/ui/html/base.layout.tmpl",
 		"./snippetbox/ui/html/footer.partial.tmpl",
 	}
+
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
-		// Поскольку обработчик home теперь является методом структуры application
-		// он может получить доступ к логгерам из структуры.
-		// Используем их вместо стандартного логгера от Go.
-		// app.errorLog.Println(err.Error()) // заменили на общий логгер из helpers чтобы не повторяться
-
-		app.serverError(w, err) // Использование помощника serverError() из halpers
+		app.serverError(w, err)
 		return
 	}
-	err = ts.Execute(w, nil)
+
+	// Передаем структуру templateData в шаблонизатор.
+	// Теперь она будет доступна внутри файлов шаблона через точку.
+	err = ts.Execute(w, data)
 	if err != nil {
-		// Обновляем код для использования логгера-ошибок
-		// из структуры application.
-		// app.errorLog.Println(err.Error()) // заменили на общий логгер из helpers чтобы не повторяться
-		app.serverError(w, err) // Использование помощника serverError() из halpers
+		app.serverError(w, err)
 	}
 }
-
-// Меняем сигнатуру обработчика showSnippet, чтобы он был определен как метод
-// структуры *application
 func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil || id < 1 {
-		app.notFound(w) // Использование помощника notFound() из halpers.go
+		app.notFound(w)
 		return
 	}
-	fmt.Fprintf(w, "Отображение выбранной заметки с ID %d...", id)
+
+	s, err := app.snippets.Get(id)
+	if err != nil {
+		if errors.Is(err, models.ErrNoRecord) {
+			app.notFound(w)
+		} else {
+			app.serverError(w, err)
+		}
+		return
+	}
+
+	// Создаем экземпляр структуры templateData, содержащей данные заметки.
+	// Обратите внимание на передачу заметки с данными (структура models.Snippet) в качестве последнего параметра.
+	data := &templateData{Snippet: s}
+
+	// Инициализируем срез, содержащий путь к файлу show.page.tmpl
+	// Добавив еще базовый шаблон и часть футера, который мы сделали ранее.
+	files := []string{
+		"./snippetbox/ui/html/show.page.tmpl",
+		"./snippetbox/ui/html/base.layout.tmpl",
+		"./snippetbox/ui/html/footer.partial.tmpl",
+	}
+	// Парсинг файлов шаблонов...
+	ts, err := template.ParseFiles(files...)
+	if err != nil {
+		app.serverError(w, err)
+		return
+	}
+	// А затем выполняем их.
+	// Передаем структуру templateData в качестве данных для шаблона.
+	err = ts.Execute(w, data)
+	if err != nil {
+		app.serverError(w, err)
+	}
 }
 
-// Меняем сигнатуру обработчика createSnippet, чтобы он определялся как метод
-// структуры *application.
 func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -75,21 +95,115 @@ func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Создаем несколько переменных, содержащих тестовые данные. Мы удалим их позже.
 	title := "История про улитку"
 	content := "Улитка выползла из раковины,\nвытянула рожки,\nи опять подобрала их."
 	expires := "7"
 
-	// Передаем данные в метод SnippetModel.Insert(), получая обратно ID только что созданной записи в базу данных.
 	id, err := app.snippets.Insert(title, content, expires)
 	if err != nil {
 		app.serverError(w, err)
 		return
 	}
-
-	// Перенаправляем пользователя на соответствующую страницу заметки.
 	http.Redirect(w, r, fmt.Sprintf("/snippet?id=%d", id), http.StatusSeeOther)
 }
+
+//// 3 версия handlers (Логирование)
+///*
+//логгеры infoLog и errorLog не видны из за области видимости функции main()
+//
+//У большинства веб-приложений будет несколько зависимостей, к которым их обработчики должны обращаться.
+//Например пул соединений с базой данных, централизованные обработчики ошибок и кэши шаблонов.
+//
+//Как сделать любую зависимость доступной нашим обработчикам?
+//- Глобальная переменная выручит, но усложнит тестирование и повысит риск возникновение ошибок
+//
+//- Для приложений, в которых все обработчики находятся в одном пакете (как наше приложение),
+//отличным способом внедрения зависимостей будет их размещение в структуру application
+//
+//В файле main.go создаём новую структуру application
+//*/
+//
+//// Меняем сигнатуры обработчика home, чтобы он определялся как метод
+//// структуры *application.
+//func (app *application) home(w http.ResponseWriter, r *http.Request) {
+//	if r.URL.Path != "/" {
+//		app.notFound(w) // Использование помощника notFound() из halpers.go
+//		return
+//	}
+//	files := []string{
+//		"./snippetbox/ui/html/home.page.tmpl",
+//		"./snippetbox/ui/html/base.layout.tmpl",
+//		"./snippetbox/ui/html/footer.partial.tmpl",
+//	}
+//	ts, err := template.ParseFiles(files...)
+//	if err != nil {
+//		// Поскольку обработчик home теперь является методом структуры application
+//		// он может получить доступ к логгерам из структуры.
+//		// Используем их вместо стандартного логгера от Go.
+//		// app.errorLog.Println(err.Error()) // заменили на общий логгер из helpers чтобы не повторяться
+//
+//		app.serverError(w, err) // Использование помощника serverError() из halpers
+//		return
+//	}
+//	err = ts.Execute(w, nil)
+//	if err != nil {
+//		// Обновляем код для использования логгера-ошибок
+//		// из структуры application.
+//		// app.errorLog.Println(err.Error()) // заменили на общий логгер из helpers чтобы не повторяться
+//		app.serverError(w, err) // Использование помощника serverError() из halpers
+//	}
+//}
+//
+//// Меняем сигнатуру обработчика showSnippet, чтобы он был определен как метод
+//// структуры *application
+//func (app *application) showSnippet(w http.ResponseWriter, r *http.Request) {
+//	id, err := strconv.Atoi(r.URL.Query().Get("id"))
+//	if err != nil || id < 1 {
+//		// Использование помощника notFound() из halpers.go
+//		app.notFound(w) // Страница не найдена.
+//		return
+//	}
+//
+//	// Вызываем метода Get из модели Snipping для извлечения данных для
+//	// конкретной записи на основе её ID. Если подходящей записи не найдено,
+//	// то возвращается ответ 404 Not Found (Страница не найдена).
+//	s, err := app.snippets.Get(id)
+//	if err != nil {
+//		if errors.Is(err, models.ErrNoRecord) {
+//			app.notFound(w)
+//		} else {
+//			app.serverError(w, err)
+//		}
+//		return
+//	}
+//
+//	// Отображаем весь вывод на странице.
+//	fmt.Fprintf(w, "%v", s)
+//}
+//// Меняем сигнатуру обработчика createSnippet, чтобы он определялся как метод
+//// структуры *application.
+//func (app *application) createSnippet(w http.ResponseWriter, r *http.Request) {
+//	if r.Method != http.MethodPost {
+//		w.Header().Set("Allow", http.MethodPost)
+//		app.clientError(w, http.StatusMethodNotAllowed)
+//		return
+//	}
+//
+//	// Создаем несколько переменных, содержащих тестовые данные. Мы удалим их позже.
+//	title := "История про улитку"
+//	content := "Улитка выползла из раковины,\nвытянула рожки,\nи опять подобрала их."
+//	expires := "7"
+//
+//	// Передаем данные в метод SnippetModel.Insert(), получая обратно ID только что созданной записи в базу данных.
+//	id, err := app.snippets.Insert(title, content, expires)
+//	if err != nil {
+//		app.serverError(w, err)
+//		return
+//	}
+//
+//	// Перенаправляем пользователя на соответствующую страницу заметки.
+//	http.Redirect(w, r, fmt.Sprintf("/snippet?id=%d", id), http.StatusSeeOther)
+//}
 
 //---------------------------------------------------------------------------------------------------------------
 // Вторая версия handlers (Работа с HTML шаблонами + разьяснение по обработчику)
