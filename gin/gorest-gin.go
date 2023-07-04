@@ -8,8 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"example.com/internal/taskstore"
-	"github.com/gin-gonic/gin"
+	"github.com/akonovalovdev/servers/gin/internal/taskstore"
 )
 
 type taskServer struct {
@@ -21,16 +20,16 @@ func NewTaskServer() *taskServer {
 	return &taskServer{store: store}
 }
 
-func (ts *taskServer) getAllTasksHandler(c *gin.Context) {
+func (ts *taskServer) getAllTasksHandler(c *Context) {
 	allTasks := ts.store.GetAllTasks()
 	c.JSON(http.StatusOK, allTasks)
 }
 
-func (ts *taskServer) deleteAllTasksHandler(c *gin.Context) {
+func (ts *taskServer) deleteAllTasksHandler(c *Context) {
 	ts.store.DeleteAllTasks()
 }
 
-func (ts *taskServer) createTaskHandler(c *gin.Context) {
+func (ts *taskServer) createTaskHandler(c *Context) {
 	type RequestTask struct {
 		Text string    `json:"text"`
 		Tags []string  `json:"tags"`
@@ -44,10 +43,10 @@ func (ts *taskServer) createTaskHandler(c *gin.Context) {
 	}
 
 	id := ts.store.CreateTask(rt.Text, rt.Tags, rt.Due)
-	c.JSON(http.StatusOK, gin.H{"Id": id})
+	c.JSON(http.StatusOK, H{"Id": id})
 }
 
-func (ts *taskServer) getTaskHandler(c *gin.Context) {
+func (ts *taskServer) getTaskHandler(c *Context) {
 	id, err := strconv.Atoi(c.Params.ByName("id"))
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
@@ -63,7 +62,7 @@ func (ts *taskServer) getTaskHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, task)
 }
 
-func (ts *taskServer) deleteTaskHandler(c *gin.Context) {
+func (ts *taskServer) deleteTaskHandler(c *Context) {
 	id, err := strconv.Atoi(c.Params.ByName("id"))
 	if err != nil {
 		c.String(http.StatusBadRequest, err.Error())
@@ -75,13 +74,13 @@ func (ts *taskServer) deleteTaskHandler(c *gin.Context) {
 	}
 }
 
-func (ts *taskServer) tagHandler(c *gin.Context) {
+func (ts *taskServer) tagHandler(c *Context) {
 	tag := c.Params.ByName("tag")
 	tasks := ts.store.GetTasksByTag(tag)
 	c.JSON(http.StatusOK, tasks)
 }
 
-func (ts *taskServer) dueHandler(c *gin.Context) {
+func (ts *taskServer) dueHandler(c *Context) {
 	badRequestError := func() {
 		c.String(http.StatusBadRequest, "expect /due/<year>/<month>/<day>, got %v", c.FullPath())
 	}
@@ -109,7 +108,7 @@ func (ts *taskServer) dueHandler(c *gin.Context) {
 }
 
 func main() {
-	router := gin.Default()
+	router := Default()
 	server := NewTaskServer()
 
 	router.POST("/task/", server.createTaskHandler)
