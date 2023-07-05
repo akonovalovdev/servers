@@ -1,6 +1,7 @@
 syntax = "proto3";
-
+// protoc -I api/proto --go_out=pkg/api --go-grpc_out=pkg/api api/proto/*.proto
 package api;
+option go_package="genproto/adder";
 
 service Adder {
   rpc Add(AddRequest) returns (AddResponse) {}

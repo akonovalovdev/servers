@@ -1,15 +1,17 @@
 package adder
 
 import (
-	"cmd/api"
 	"context"
+	api "github.com/akonovalovdev/servers/grpc/grpcAdder/pkg/api/genproto/adder"
 )
 
 // GRPCServer ...
-type GRPCServer struct{}
+type GRPCServer struct {
+	api.UnimplementedAdderServer
+}
 
 // Add ...
-func (s *GRPCServer) Add(ctx context.Context, req *api.AddRequest) (*api.AddResponce, error) {
+func (s *GRPCServer) Add(ctx context.Context, req *api.AddRequest) (*api.AddResponse, error) {
 
-	return &api.AddResponce{Result: req.GetX() + req.GetY()}, nil
+	return &api.AddResponse{Result: req.GetX() + req.GetY()}, nil
 }

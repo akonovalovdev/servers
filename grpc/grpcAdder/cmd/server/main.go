@@ -1,8 +1,9 @@
 package main
 
 import (
-	"cmd/api"
 	"github.com/akonovalovdev/servers/grpc/grpcAdder/pkg/adder"
+	api "github.com/akonovalovdev/servers/grpc/grpcAdder/pkg/api/genproto/adder"
+	"google.golang.org/grpc"
 	"log"
 	"net"
 )
@@ -14,9 +15,9 @@ func main() {
 	srv := &adder.GRPCServer{}
 	// регистрируем созданный сервер с помощью сгенерированного метода в протобаффере
 	api.RegisterAdderServer(s, srv)
-
+	log.Print("Сервер запущен")
 	// создаём слушателя
-	l, err := net.Listen(tcp, ":8080")
+	l, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		log.Fatal()
 	}
@@ -27,3 +28,4 @@ func main() {
 }
 
 // для подключения в отдельном терминале запускаем evans api/proto/adder.proto -p 8080
+// для запуска call add
