@@ -1,12 +1,15 @@
-syntax = "proto3";
-// protoc -I api/proto --go_out=pkg/api --go-grpc_out=pkg/api api/proto/*.proto
-package api;
+syntax = "proto3"; // объявляем какой синтекс используем
+
+package api; // даём назввание пакету, в котором содержатся наши прото файлы
 option go_package="genproto/adder";
 
+// описываем наш сервис, даём название
 service Adder {
-  rpc Add(AddRequest) returns (AddResponse) {}
+  rpc Add(AddRequest) returns (AddResponse) {} // прописываем метод, который будет доступен клиентам для вызова
+  // метод принимает сообщения(AddRequest) от клиентов и отвечает неким сообщением(AddResponse)
 }
 
+// ниже описываем какие именно сообщение он возвращает
 message AddRequest {
   int32 x = 1;
   int32 y = 2;
@@ -16,3 +19,5 @@ message AddRequest {
 message AddResponse {
   int32 result = 1;
 }
+
+// protoc -I api/proto --go_out=pkg/api --go-grpc_out=pkg/api api/proto/*.proto
